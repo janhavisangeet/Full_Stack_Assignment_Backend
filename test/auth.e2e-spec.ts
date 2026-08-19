@@ -5,12 +5,56 @@ import { AppModule } from '../src/app.module';
 import { Connection } from 'mongoose';
 import { getConnectionToken } from '@nestjs/mongoose';
 
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+function getTestMongoUri(dbName: string): string {
+  const baseUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/pyramid-tasks';
+  if (baseUri.startsWith('mongodb+srv://')) {
+    const prefix = 'mongodb+srv://';
+    const relativePart = baseUri.substring(prefix.length);
+    const slashIndex = relativePart.indexOf('/');
+    if (slashIndex === -1) {
+      const qIndex = relativePart.indexOf('?');
+      if (qIndex === -1) {
+        return `${baseUri.replace(/\/$/, '')}/${dbName}`;
+      } else {
+        const host = relativePart.substring(0, qIndex);
+        const params = relativePart.substring(qIndex);
+        return `${prefix}${host}/${dbName}${params}`;
+      }
+    } else {
+      const host = relativePart.substring(0, slashIndex);
+      const rest = relativePart.substring(slashIndex + 1);
+      const qIndex = rest.indexOf('?');
+      if (qIndex === -1) {
+        return `${prefix}${host}/${dbName}`;
+      } else {
+        const params = rest.substring(qIndex);
+        return `${prefix}${host}/${dbName}${params}`;
+      }
+    }
+  } else {
+    const prefix = 'mongodb://';
+    const relativePart = baseUri.substring(prefix.length);
+    const slashIndex = relativePart.indexOf('/');
+    if (slashIndex === -1) {
+      return `${baseUri}/${dbName}`;
+    } else {
+      const host = relativePart.substring(0, slashIndex);
+      return `${prefix}${host}/${dbName}`;
+    }
+  }
+}
+
 describe('AuthController (e2e)', () => {
   let app: INestApplication;
   let mongoConnection: Connection;
 
   beforeAll(async () => {
-    process.env.MONGODB_URI = 'mongodb://localhost:27017/pyramid-tasks-test-auth';
+    process.env.MONGODB_URI = getTestMongoUri('pyramid-tasks-test-auth');
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -35,11 +79,17 @@ describe('AuthController (e2e)', () => {
 
   afterAll(async () => {
     // Close resources and drop test database
-    try {
-      await mongoConnection.dropDatabase();
-    } catch (e) {}
-    await mongoConnection.close();
-    await app.close();
+    if (mongoConnection) {
+      try {
+        await mongoConnection.dropDatabase();
+      } catch (e) {}
+      try {
+        await mongoConnection.close();
+      } catch (e) {}
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   beforeEach(async () => {

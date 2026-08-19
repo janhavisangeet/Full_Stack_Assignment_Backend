@@ -21,6 +21,13 @@ export class Project {
   @Prop({ default: '' })
   lead: string;
 
+  @Prop({
+    type: String,
+    enum: ['todo', 'doing', 'completed'],
+    default: 'todo',
+  })
+  status: string;
+
   @Prop({ type: Date })
   dueDate: Date;
 

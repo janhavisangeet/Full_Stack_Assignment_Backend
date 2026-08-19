@@ -19,6 +19,10 @@ export class CreateProjectDto {
   lead?: string;
 
   @IsOptional()
+  @IsEnum(['todo', 'doing', 'completed'])
+  status?: string;
+
+  @IsOptional()
   @IsDateString()
   dueDate?: string;
 }
